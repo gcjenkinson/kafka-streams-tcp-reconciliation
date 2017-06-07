@@ -33,7 +33,10 @@
 package uk.ac.cam.cl.cadets;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
+import java.time.Instant;
 import java.util.UUID;
 
 public final class TcpReconciliationRecord extends CadetsRecord {
@@ -46,6 +49,7 @@ public final class TcpReconciliationRecord extends CadetsRecord {
     private String method;
     private UUID authorityUuid;
     private float confidence;
+    private long time;
 
     public TcpReconciliationRecord() {
     }
@@ -56,12 +60,12 @@ public final class TcpReconciliationRecord extends CadetsRecord {
         final UUID authorityUuid,
         final float confidence) {
         super(TCP_RECONCILIATION_EVENT);
-        System.out.println("Constructing TcpReconRecord");
         this.connectSockUuid = connectSockUuid;
         this.acceptSockUuid = acceptSockUuid;
         this.method = method;
         this.authorityUuid = authorityUuid;
         this.confidence = confidence;
+        this.time = Instant.now().toEpochMilli();
     }
 
     @JsonProperty("connect_sockuuid")
@@ -105,5 +109,17 @@ public final class TcpReconciliationRecord extends CadetsRecord {
 
     public void setConfidence(final float confidence) {
         this.confidence = confidence;
+    }
+
+    public float getTime() {
+        return time;
+    }
+
+    public void setTime(final long time) {
+        this.time = time;
+    }
+
+    public JsonNode toJsonNode() {
+        return new ObjectMapper().valueToTree(this);
     }
 }

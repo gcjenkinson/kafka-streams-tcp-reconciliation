@@ -41,6 +41,8 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 final public class TimestampExtractor
     implements org.apache.kafka.streams.processor.TimestampExtractor {
 
+    public final static String TIME_FIELD = "time";
+
     @Override
     public long extract(final ConsumerRecord<Object, Object> consumerRecord,
         final long previousTimestamp) {
@@ -50,6 +52,6 @@ final public class TimestampExtractor
 	    return 0;
         else
 	    return TimeUnit.NANOSECONDS.toMillis(
-                ((JsonNode) val).get("time").asLong());
+                ((JsonNode) val).get(TIME_FIELD).asLong());
     }
 }

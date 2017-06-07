@@ -33,7 +33,13 @@
 package uk.ac.cam.cl.cadets;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 
+import java.io.FileNotFoundException;
+import java.io.InputStream;
+import java.io.IOException;
+import java.util.Iterator;
+import java.util.Map;
 import java.util.Properties;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -54,12 +60,37 @@ import org.apache.kafka.clients.consumer.ConsumerConfig;
 
 final public class TcpReconciliation {
 
-    public static final String APPLICATION_ID = "tcp-reconciliation";
+    public static final String PROP_FILENAME = "config.properties";
+
+    public static final String APPLICATION_ID = "application-id";
+    public static final String APPLICATION_ID_DEFAULT = "tcp-reconciliation";
+
+    public static final String BOOTSTRAP_SERVERS_CONFIG =
+        "bootstrap-servers";
+    public static final String BOOTSTRAP_SERVERS_CONFIG_DEFAULT =
+        "localhost:9092";
+
+    public static final String ZOOKEEPER_CONNECT_CONFIG =
+        "zookeeper-connect";
+    public static final String ZOOKEEPER_CONNECT_CONFIG_DEFAULT =
+        "localhost:2181";
+
+    public static final String METHOD = "method";
+    public static final String METHOD_DEFAULT = "distributed-dtrace-4tuple";
 
     public static final String TOPIC_IN = "ddtrace-query-response";
     public static final String TOPIC_OUT = "tcp-reconciliation";
 
     public static void main(String[] args) throws Exception {
+  
+        // Load the configuration properties from a file 
+        final Properties configProperties = new Properties();
+        try (final InputStream in = TcpReconciliation.class
+            .getClassLoader().getResourceAsStream(PROP_FILENAME)) {
+            configProperties.load(in);
+        } catch (IOException e) {
+            throw new FileNotFoundException("config.properties not found");
+        }
 
 	final Serializer<JsonNode> jsonSerializer = new JsonSerializer();
 
@@ -77,11 +108,17 @@ final public class TcpReconciliation {
 
         final Properties props = new Properties();
 
-        props.put(StreamsConfig.APPLICATION_ID_CONFIG, APPLICATION_ID);
+        props.put(StreamsConfig.APPLICATION_ID_CONFIG,
+            configProperties.getProperty(
+                APPLICATION_ID, APPLICATION_ID_DEFAULT));
         props.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG,
-            "172.16.100.164:9092");
+            configProperties.getProperty(
+                BOOTSTRAP_SERVERS_CONFIG,
+                BOOTSTRAP_SERVERS_CONFIG_DEFAULT));
         props.put(StreamsConfig.ZOOKEEPER_CONNECT_CONFIG,
-            "172.16.100.164:2181");
+            configProperties.getProperty(
+                ZOOKEEPER_CONNECT_CONFIG,
+                ZOOKEEPER_CONNECT_CONFIG_DEFAULT));
         props.put(StreamsConfig.KEY_SERDE_CLASS_CONFIG,
 		    Serdes.String().getClass().getName());
         props.put(StreamsConfig.TIMESTAMP_EXTRACTOR_CLASS_CONFIG,
@@ -104,7 +141,24 @@ final public class TcpReconciliation {
             builder.stream(stringSerde, jsonSerde, TOPIC_IN);
 
         final KStream<String, JsonNode> filteredTraces [] = cadetsTrace
-            .filterNot((k, v) -> v == null || v.get("event").isNull())
+            .filterNot((k, v) -> v == null ||
+                v.get("event").isNull() ||
+                v.get("host").isNull())
+            .mapValues(v-> {
+                final String hostuuid = v.get("host").textValue();
+                final Iterator<Map.Entry<String, JsonNode>> nodes = v.fields();
+                while (nodes.hasNext()) {
+                    final Map.Entry<String, JsonNode> entry =
+                        (Map.Entry<String, JsonNode>) nodes.next(); 
+                    final String key = entry.getKey();
+                    if (!key.equals("hostuuid") && key.contains("uuid")) {
+                       final String value = entry.getValue().textValue();
+                       final String hostPrefixedValue = hostuuid + ":" + value;
+                       ((ObjectNode) v).put(key, hostPrefixedValue);
+                    }
+                }
+                return v;
+            })
             .branch(isConnect, isAccept);
         
 	final KStream<String, JsonNode> connectTrace =
@@ -127,28 +181,29 @@ final public class TcpReconciliation {
         final UUID distributedDtraceUuid =
             UUID.fromString("00000000-0000-0000-0000-000000000001");
         System.out.println("distributed-dtrace UUID " + distributedDtraceUuid);
+            
+        final String method =
+            configProperties.getProperty(METHOD, METHOD_DEFAULT);
 
-        TcpReconciliationRecord test = new TcpReconciliationRecord(
-                "0",
-                "1",
-                "distribute-dtrace",
-                distributedDtraceUuid,
-                0.0F);
-
-        final KStream<String, TcpReconciliationRecord> tcpReconciliation =
+        //final KStream<String, TcpReconciliationRecord> tcpReconciliation =
+        final KStream<String, JsonNode> tcpReconciliation =
             connectTrace.join(acceptTrace,
             (leftValue, rightValue) -> new TcpReconciliationRecord(
                 leftValue.get("arg_objuuid1").textValue(),
-                rightValue.get("arg_objuuid1").textValue(),
-                "distribute-dtrace",
+                rightValue.get("arg_objuuid1").textValue(), // ret
+                method,
                 distributedDtraceUuid,
-                0.0F),
+                0.0F).toJsonNode(),
             JoinWindows.of(joinWindowSize), //.until(windowRetentionSize),
             stringSerde,
             jsonSerde,
-            jsonSerde)
+            jsonSerde);
             // Send the TCP reconciliation stream to the output Kafka topic
-            .through(stringSerde, tcpReconciliationRecordSerde, TOPIC_OUT);
+            //.through(stringSerde, tcpReconciliationRecordSerde, TOPIC_OUT);
+
+        // Send the TCP reconciliation stream to the output Kafka topic
+        //tcpReconciliation.to(stringSerde, tcpReconciliationRecordSerde,
+        tcpReconciliation.to(stringSerde, jsonSerde, TOPIC_IN);
         tcpReconciliation.print();
 
         final KafkaStreams streams = new KafkaStreams(builder, props);

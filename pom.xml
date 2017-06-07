@@ -33,6 +33,11 @@
                         </executions>
                     </plugin>
                 </plugins>
+		<resources>
+			<resource>
+				<directory>config</directory>
+			</resource>
+		</resources>
 	</build>
 	<dependencies>
 		<dependency>
