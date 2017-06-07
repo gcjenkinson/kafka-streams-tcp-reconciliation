@@ -185,25 +185,20 @@ final public class TcpReconciliation {
         final String method =
             configProperties.getProperty(METHOD, METHOD_DEFAULT);
 
-        //final KStream<String, TcpReconciliationRecord> tcpReconciliation =
         final KStream<String, JsonNode> tcpReconciliation =
             connectTrace.join(acceptTrace,
             (leftValue, rightValue) -> new TcpReconciliationRecord(
                 leftValue.get("arg_objuuid1").textValue(),
-                rightValue.get("arg_objuuid1").textValue(), // ret
+                rightValue.get("ret_objuuid1").textValue(),
                 method,
                 distributedDtraceUuid,
                 0.0F).toJsonNode(),
             JoinWindows.of(joinWindowSize), //.until(windowRetentionSize),
             stringSerde,
             jsonSerde,
-            jsonSerde);
-            // Send the TCP reconciliation stream to the output Kafka topic
-            //.through(stringSerde, tcpReconciliationRecordSerde, TOPIC_OUT);
-
-        // Send the TCP reconciliation stream to the output Kafka topic
-        //tcpReconciliation.to(stringSerde, tcpReconciliationRecordSerde,
-        tcpReconciliation.to(stringSerde, jsonSerde, TOPIC_IN);
+            jsonSerde)
+            // Send the TCP reconciliation stream to the Kafka topic
+            .through(stringSerde, jsonSerde, TOPIC_IN);
         tcpReconciliation.print();
 
         final KafkaStreams streams = new KafkaStreams(builder, props);
