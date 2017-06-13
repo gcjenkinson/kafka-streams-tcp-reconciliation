@@ -32,6 +32,11 @@
 
 package uk.ac.cam.cl.cadets;
 
+/***
+ * Abstract class representing a CADETS record.
+ * 
+ * Specific record types should extend this class.
+ */
 public abstract class CadetsRecord {
 
     protected String event;
