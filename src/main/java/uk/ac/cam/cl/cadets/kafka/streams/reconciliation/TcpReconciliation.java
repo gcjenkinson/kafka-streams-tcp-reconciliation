@@ -314,7 +314,6 @@ final public class TcpReconciliation {
                 ":" + v.get("laddr").textValue() +
                 ":" + v.get("faddr").textValue()
                 );
-        joinedAcceptTrace.print();
 
         final KStream<String, JsonNode> tcpReconciliation =
             joinedConnectTrace.join(joinedAcceptTrace,
