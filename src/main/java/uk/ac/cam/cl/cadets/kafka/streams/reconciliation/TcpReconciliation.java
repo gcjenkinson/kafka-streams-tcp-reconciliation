@@ -83,10 +83,6 @@ final public class TcpReconciliation {
     public static final String BOOTSTRAP_SERVERS_CONFIG_DEFAULT =
         "localhost:9092";
 
-    public static final String ZOOKEEPER_CONNECT_CONFIG = "zookeeper-connect";
-    public static final String ZOOKEEPER_CONNECT_CONFIG_DEFAULT =
-        "localhost:2181";
-
     public static final String METHOD = "reconciliation-method";
     public static final String METHOD_DEFAULT = "distributed-dtrace-4tuple";
 
@@ -173,10 +169,6 @@ final public class TcpReconciliation {
             configProperties.getProperty(
                 BOOTSTRAP_SERVERS_CONFIG,
                 BOOTSTRAP_SERVERS_CONFIG_DEFAULT));
-        props.put(StreamsConfig.ZOOKEEPER_CONNECT_CONFIG,
-            configProperties.getProperty(
-                ZOOKEEPER_CONNECT_CONFIG,
-                ZOOKEEPER_CONNECT_CONFIG_DEFAULT));
         props.put(StreamsConfig.KEY_SERDE_CLASS_CONFIG,
 		    Serdes.String().getClass().getName());
         props.put(StreamsConfig.TIMESTAMP_EXTRACTOR_CLASS_CONFIG,
@@ -327,6 +319,7 @@ final public class TcpReconciliation {
             stringSerde,
             jsonSerde,
             jsonSerde);
+
         tcpReconciliation.print();
 
         // Send the TCP reconciliation stream to the output Kafka topic
