@@ -6,7 +6,7 @@
 	<groupId>cadets.cl.cam.ac.uk</groupId>
 	<version>0.0.1</version>
 	<modelVersion>4.0.0</modelVersion>
-	<artifactId>kafka-streams-tcp-reconcilliation</artifactId>
+	<artifactId>kafka-streams-tcp-reconciliation</artifactId>
 	<packaging>jar</packaging>
 
 	<build>
