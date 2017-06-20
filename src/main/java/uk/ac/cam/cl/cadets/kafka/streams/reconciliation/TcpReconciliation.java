@@ -108,12 +108,39 @@ final public class TcpReconciliation implements Daemon {
     public static final UUID distributedDtraceUuid =
             UUID.fromString("00000000-0000-0000-0000-000000000001");
 
-    private final KafkaStreams streams;
+    private KafkaStreams streams;
     
     @Override
     public void init(final DaemonContext daemonContext)
         throws DaemonInitException, Exception {
 	LOGGER.info("Initialising TcpReconciliation");
+
+        _init();
+    }
+
+    @Override
+    public void start() throws Exception {
+	LOGGER.info("Starting TcpReconciliation");
+        streams.start();
+    
+        // Add shutdown hook to respond to SIGTERM and gracefully close
+        // Kafka Streams
+        Runtime.getRuntime().addShutdownHook(new Thread(streams::close));
+    }
+
+    @Override
+    public void stop() throws Exception {
+	LOGGER.info("Stopping TcpReconciliation");
+        streams.close();
+    }
+
+    @Override
+    public void destroy() {
+	LOGGER.info("Destroying TcpReconciliation");
+        streams.close();
+    }
+
+    private void _init() throws FileNotFoundException {
 
         // Load the configuration properties from a file 
         final Properties configProperties = new Properties();
@@ -335,32 +362,10 @@ final public class TcpReconciliation implements Daemon {
         streams = new KafkaStreams(builder, props);
     }
 
-    @Override
-    public void start() throws Exception {
-	LOGGER.info("Starting TcpReconciliation");
-        streams.start();
-    
-        // Add shutdown hook to respond to SIGTERM and gracefully close
-        // Kafka Streams
-        Runtime.getRuntime().addShutdownHook(new Thread(streams::close));
-    }
-
-    @Override
-    public void stop() throws Exception {
-	LOGGER.info("Stopping TcpReconciliation");
-        streams.close();
-    }
-
-    @Override
-    public void destroy() {
-	LOGGER.info("Destroying TcpReconciliation");
-        streams.close();
-    }
-
     public static void main(final String[] args) throws Exception {
 
         final TcpReconciliation tcpRecon = new TcpReconciliation();
-        tcpRecon.init();
+        tcpRecon._init();
         tcpRecon.start();
     }
 }
