@@ -10,7 +10,7 @@ EXEC="/usr/bin/jsvc"
 JAVA_HOME="/usr/lib/jvm/java-1.8.0-openjdk-amd64"
 
 # The path to the folder containing the kafka-streams-tcp-reconciliation-0.0.1.jar 
-FILE_PATH="/tmp/kafka-streams-tcp-reconciliation"
+FILE_PATH="/home/vagrant/kafka-streams-tcp-reconciliation"
 
 # Our classpath
 CLASS_PATH="$FILE_PATH/target/kafka-streams-tcp-reconciliation-0.0.1-shaded.jar"
