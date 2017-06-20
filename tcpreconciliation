@@ -1,4 +1,4 @@
-#! /bin/sh
+#!/bin/sh
 
 NAME="tcpreconciliation"
 DESC="TCP reconciliation service"
