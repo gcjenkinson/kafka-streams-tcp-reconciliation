@@ -57,6 +57,10 @@ import org.apache.kafka.streams.kstream.KStream;
 import org.apache.kafka.streams.kstream.KStreamBuilder;
 import org.apache.kafka.streams.kstream.Predicate;
 
+import org.apache.commons.daemon.Daemon;
+import org.apache.commons.daemon.DaemonContext;
+import org.apache.commons.daemon.DaemonInitException;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -69,7 +73,7 @@ import org.slf4j.LoggerFactory;
  * against the stream of audit::aue-connect (which has been key'd against the
  * corresponding socket's so_uuid).
  */
-final public class TcpReconciliation {
+final public class TcpReconciliation implements Daemon {
 
     private static final Logger LOGGER =
         LoggerFactory.getLogger(TcpReconciliation.class);
@@ -104,10 +108,13 @@ final public class TcpReconciliation {
     public static final UUID distributedDtraceUuid =
             UUID.fromString("00000000-0000-0000-0000-000000000001");
 
-    public static void main(final String[] args) throws Exception {
-
+    private final KafkaStreams streams;
+    
+    @Override
+    public void init(final DaemonContext daemonContext)
+        throws DaemonInitException, Exception {
 	LOGGER.info("Initialising TcpReconciliation");
-  
+
         // Load the configuration properties from a file 
         final Properties configProperties = new Properties();
         try (final InputStream in = TcpReconciliation.class
@@ -325,11 +332,35 @@ final public class TcpReconciliation {
         // Send the TCP reconciliation stream to the output Kafka topic
         tcpReconciliation.to(stringSerde, jsonSerde, topicOut);
 
-        final KafkaStreams streams = new KafkaStreams(builder, props);
-        streams.start();
+        streams = new KafkaStreams(builder, props);
+    }
 
+    @Override
+    public void start() throws Exception {
+	LOGGER.info("Starting TcpReconciliation");
+        streams.start();
+    
         // Add shutdown hook to respond to SIGTERM and gracefully close
         // Kafka Streams
         Runtime.getRuntime().addShutdownHook(new Thread(streams::close));
+    }
+
+    @Override
+    public void stop() throws Exception {
+	LOGGER.info("Stopping TcpReconciliation");
+        streams.close();
+    }
+
+    @Override
+    public void destroy() {
+	LOGGER.info("Destroying TcpReconciliation");
+        streams.close();
+    }
+
+    public static void main(final String[] args) throws Exception {
+
+        final TcpReconciliation tcpRecon = new TcpReconciliation();
+        tcpRecon.init();
+        tcpRecon.start();
     }
 }
