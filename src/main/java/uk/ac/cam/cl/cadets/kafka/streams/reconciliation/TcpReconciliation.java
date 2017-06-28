@@ -255,13 +255,9 @@ final public class TcpReconciliation implements Daemon {
             (k, v) -> v.get("event").textValue()
                 .equals("audit:event:aue_accept:");
 
-        final Predicate<String, JsonNode> isSyncacheExpand =
-            (k, v) -> v.get("event").textValue()
-                .equals("fbt:kernel:syncache_expand:");
-
         final KStream<String, JsonNode> filteredTraces [] =
             cadetsTrace.branch(isConnect, isCcConnInit,
-            isAccept, isSyncacheExpand);
+            isAccept);
  
         // Join the connect and ccConnInit traces togther having first
         // key'd them on the socket's uuid
@@ -272,14 +268,17 @@ final public class TcpReconciliation implements Daemon {
             // Key record on the value of arg_objuuid1
             .selectKey((k, v) -> v.get("arg_objuuid1").textValue());
 
-        final KStream<String, JsonNode> ccConnInitTrace =
+        final KStream<String, JsonNode> ccConnInitConnectTrace =
 	    filteredTraces[1]
             .filterNot((k, v) -> v.get("so_uuid").isNull())
             // Key record on so_uuid
             .selectKey((k, v) -> v.get("so_uuid").textValue());
 
+        final KStream<String, JsonNode> ccConnInitAcceptTrace =
+            builder.merge(ccConnInitConnectTrace);
+
 	final KStream<String, JsonNode> joinedConnectTrace =
-            connectTrace.join(ccConnInitTrace,
+            connectTrace.join(ccConnInitConnectTrace,
                 (left, right) -> {
                     ((ObjectNode) left).put("lport",
                         right.get("lport").intValue());
@@ -311,14 +310,8 @@ final public class TcpReconciliation implements Daemon {
             // Key record on the value of ret_objuuid1
             .selectKey((k, v) -> v.get("ret_objuuid1").textValue());
 
- 	final KStream<String, JsonNode> syncacheExpandTrace =
-	    filteredTraces[3]
-            .filterNot((k, v) -> v.get("so_uuid").isNull())
-            // Key record on so_uuid
-            .selectKey((k, v) -> v.get("so_uuid").textValue());
-
 	final KStream<String, JsonNode> joinedAcceptTrace =
-            acceptTrace.join(syncacheExpandTrace,
+            acceptTrace.join(ccConnInitAcceptTrace,
                 (left, right) -> {
                     ((ObjectNode) left).put("lport",
                         right.get("fport").intValue());
