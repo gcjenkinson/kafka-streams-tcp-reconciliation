@@ -307,9 +307,9 @@ final public class TcpReconciliation implements Daemon {
 
 	final KStream<String, JsonNode> acceptTrace =
 	    filteredTraces[2]
-            .filterNot((k, v) -> v.get("arg_objuuid1").isNull())
-            // Key record on the value of arg_objuuid1
-            .selectKey((k, v) -> v.get("arg_objuuid1").textValue());
+            .filterNot((k, v) -> v.get("ret_objuuid1").isNull())
+            // Key record on the value of ret_objuuid1
+            .selectKey((k, v) -> v.get("ret_objuuid1").textValue());
 
  	final KStream<String, JsonNode> syncacheExpandTrace =
 	    filteredTraces[3]
